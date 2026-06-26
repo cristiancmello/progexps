@@ -1,0 +1,32 @@
+# Download do raw.xz
+wget https://dl.fedoraproject.org/pub/alt/risc-v/release/44/Server/riscv64/images/Fedora-Server-Host-Generic-44-20260604.0.riscv64.raw.xz
+
+# Descompactar raw.xz em .raw
+xz -d Fedora-Server-Host-Generic-44-20260604.0.riscv64.raw.xz
+
+# Converter .raw em .qcow2
+qemu-img convert -f raw -O qcow2 \
+  Fedora-Server-Host-Generic-44-20260604.0.riscv64.raw \
+  fedora_riscv.qcow2
+  
+# Alternativa para obter .qcow2 diretamente
+# Siga o tutorial https://fedoraproject.org/wiki/Architectures/RISC-V/QEMU
+
+cp /usr/share/edk2/riscv/RISCV_VIRT_VARS.fd ./vars.fd
+cp /usr/share/edk2/riscv/RISCV_VIRT_CODE.fd ./code.fd
+
+qemu-img resize -f raw ./code.fd 32M
+qemu-img resize -f raw ./vars.fd 32M
+
+qemu-system-riscv64 \
+  -M virt \
+  -cpu rv64 \
+  -smp 4 \
+  -m 2G \
+  -accel tcg,thread=multi,tb-size=512 \
+  -nographic \
+  -drive file=./code.fd,if=pflash,format=raw,readonly=on \
+  -drive file=./vars.fd,if=pflash,format=raw \
+  -drive file=fedora_riscv.qcow2,format=qcow2,if=virtio \
+  -netdev user,id=net0,hostfwd=tcp::2222-:22,hostfwd=tcp::9090-:9090 \
+  -device virtio-net-device,netdev=net0
